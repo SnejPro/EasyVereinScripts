@@ -1,0 +1,18 @@
+{
+    "SumUp": {
+        "MerchantId": "",
+        "ApiKey": "",
+        "EasyVerein":{
+            "AccountId": ""
+        }
+    },
+    "Stripe": {
+        "ApiKey": "",
+        "EasyVerein": {
+            "AccountId": ""
+        }
+    },
+    "EasyVerein": {
+        "ApiKey": ""
+    }
+}
