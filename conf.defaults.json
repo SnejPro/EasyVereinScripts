@@ -13,6 +13,12 @@
         }
     },
     "EasyVerein": {
-        "ApiKey": ""
+        "ApiKey": "",
+        "BillingAccounts": {
+            "Transit": 13720
+        }
+    },
+    "Preferences": {
+        "TimeZone": "Europe/Berlin"
     }
 }

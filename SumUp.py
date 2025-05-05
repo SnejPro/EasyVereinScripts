@@ -1,20 +1,12 @@
 import datetime
+from functions import *
+import fractions
 import json
 import os
 from pprint import pprint
 import requests
 import time
-
-def selective_merge(base_obj, delta_obj):
-    if not isinstance(base_obj, dict):
-        return delta_obj
-    common_keys = set(base_obj).intersection(delta_obj)
-    new_keys = set(delta_obj).difference(common_keys)
-    for k in common_keys:
-        base_obj[k] = selective_merge(base_obj[k], delta_obj[k])
-    for k in new_keys:
-        base_obj[k] = delta_obj[k]
-    return base_obj
+from zoneinfo import ZoneInfo
 
 def fetch_next(resp, headers):
     transactions=[]
@@ -41,93 +33,108 @@ def transaction_detail_get(transaction, headers):
     )
     return response.json()
 
-
-with open("conf.defaults.json", "r") as config_defaults_file:
-    config = json.loads(config_defaults_file.read())
-
-if os.path.exists("conf.json"):
-    with open("conf.json", "r") as config_custom_file:
-        config_custom = json.loads(config_custom_file.read())
-        config = selective_merge(config, config_custom)
-
-if os.path.exists("SumUp_LastCall.txt"):
-    with open("SumUp_LastCall.txt", "r+") as LastCallFile:
-        LastCall=datetime.datetime.fromtimestamp(float(LastCallFile.read()))
-else:
-    LastCall=None
+config = config_get()
+last_call=last_call("SumUp")
+local_time_zone=ZoneInfo(config["Preferences"]["TimeZone"])
 
 headers = {"Authorization": "Bearer %s" % config["SumUp"]["ApiKey"]}
 parameter={
     "limit": 10
 }
-if LastCall!=None:
-    parameter["oldest_time"] =LastCall.strftime('%Y-%m-%dT%H:%M:%SZ')
+if last_call.time!=None:
+    parameter["oldest_time"]=last_call.time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 transactions=[]
-CurrentCall=datetime.datetime.now(datetime.timezone.utc).timestamp()
+current_call=datetime.datetime.now(datetime.timezone.utc)
 
-try:
-    response = requests.get(
-        'https://api.sumup.com/v2.1/merchants/%s/transactions/history' % (config["SumUp"]["MerchantId"]),
-        params=parameter,
-        headers=headers
-    )
-    transactions=response.json()["items"]
-    transactions.extend(fetch_next(resp=response.json(), headers=headers))
+easy_verein=easy_verein(
+    api_key=config["EasyVerein"]["ApiKey"],
+    bank_account=config["SumUp"]["EasyVerein"]["AccountId"]
+)
+
+response = requests.get(
+    'https://api.sumup.com/v2.1/merchants/%s/transactions/history' % (config["SumUp"]["MerchantId"]),
+    params=parameter,
+    headers=headers
+)
+transactions=response.json()["items"]
+transactions.extend(fetch_next(resp=response.json(), headers=headers))
 
 
-    for transaction in transactions:
-        transaction["detail"]=transaction_detail_get(transaction, headers=headers)
+for transaction in transactions:
+    transaction["detail"]=transaction_detail_get(transaction, headers=headers)
 
+for transaction in transactions:
+    if transaction["status"] != "SUCCESSFUL":
+        print("skipping unsuccessfull transaction\n%s" % transaction)
+        continue
 
-    headers = {"Authorization": "Bearer %s" % config["EasyVerein"]["ApiKey"]}
-    for transaction in transactions:
-        if transaction["status"] != "SUCCESSFUL":
-            continue
+    transaction_time=datetime.datetime.fromisoformat(transaction["detail"]["local_time"]).replace(tzinfo=local_time_zone)
+    data = {
+        "amount": transaction["amount"],
+        "bankAccount": config["SumUp"]["EasyVerein"]["AccountId"],
+        "date": transaction_time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "billingId": "%s_payment" % transaction["transaction_code"],
+        "receiver": transaction["payment_type"],
+        "description": "%s\nKartenzahlung (Einnahme)\n%s - %s" % (transaction_time.strftime("%Y-%m-%d %H:%M:%S"), transaction["payment_type"], transaction["card_type"])
+    }
+    easy_verein.booking_create(data)
 
-        response = requests.get(
-            'https://easyverein.com/api/v2.0/booking',
-            params={
-                "billingId__in": "%s_payment" % transaction["transaction_code"]
-            },
-            headers=headers
-        )
-        if response.json()["count"]>0:
-            print("Booking '%s_payment' already exists. Skipping" % transaction["transaction_code"])
-            continue
+    data = {
+        "amount": 0-float(transaction["detail"]["events"][0]["fee_amount"]),
+        "bankAccount": config["SumUp"]["EasyVerein"]["AccountId"],
+        "date": transaction_time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "billingId": "%s_fee" % transaction["transaction_code"],
+        "receiver": "SumUp",
+        "description": "%s\nKartenzahlung (Gebühren)\n%s - %s" % (transaction_time.strftime("%Y-%m-%d %H:%M:%S"), transaction["payment_type"], transaction["card_type"])
+    }
+    easy_verein.booking_create(data)
+    #Prevent easyVerein rate limit
+    time.sleep(1)
 
-        time=datetime.datetime.fromisoformat(transaction["detail"]["local_time"])
-        data = {
-            "amount": transaction["amount"],
-            "bankAccount": config["SumUp"]["EasyVerein"]["AccountId"],
-            "date": transaction["detail"]["local_time"],
-            "billingId": "%s_payment" % transaction["transaction_code"],
-            "receiver": transaction["payment_type"],
-            "description": "%s\nKartenzahlung (Einnahme)\n%s - %s" % (time.strftime("%Y-%m-%d %H:%M:%S"), transaction["payment_type"], transaction["card_type"])
-        }
-        response = requests.post(
-            'https://easyverein.com/api/v2.0/booking',
-            data=data,
-            headers=headers
-        )
-        data = {
-            "amount": 0-float(transaction["detail"]["events"][0]["fee_amount"]),
-            "bankAccount": config["SumUp"]["EasyVerein"]["AccountId"],
-            "date": transaction["detail"]["local_time"],
-            "billingId": "%s_fee" % transaction["transaction_code"],
-            "receiver": "SumUp",
-            "description": "%s\nKartenzahlung (Gebühren)\n%s - %s" % (time.strftime("%Y-%m-%d %H:%M:%S"), transaction["payment_type"], transaction["card_type"])
-        }
-        response = requests.post(
-            'https://easyverein.com/api/v2.0/booking',
-            data=data,
-            headers=headers
-        )
-        #Prevent easyVerein rate limit
-        time.sleep(1)
-
-except Exception as e:
-    raise e
+parameter={
+}
+if last_call.time!=None:
+    parameter["start_date"]=last_call.time.strftime('%Y-%m-%d')
 else:
-    with open("SumUp_LastCall.txt", "w") as LastCallFile:
-        LastCallFile.write(str(CurrentCall))
+    parameter["start_date"]="%s-01-01" % datetime.now().year
+
+parameter["end_date"]=current_call.strftime('%Y-%m-%d')
+
+response = requests.get(
+    'https://api.sumup.com/v1.0/merchants/%s/payouts' % (config["SumUp"]["MerchantId"]),
+    params=parameter,
+    headers=headers
+)
+transactions=response.json()
+payouts={}
+for transaction in transactions:
+    if transaction["status"] != "SUCCESSFUL":
+        print("skipping unsuccessfull transaction\n%s" % transaction)
+        continue
+    if transaction["type"] != "PAYOUT":
+        print("skipping unsupported transaction type\n%s" % transaction)
+        continue
+
+    if transaction["reference"] in payouts:
+        payouts[transaction["reference"]]["amount"]+=transaction["amount"]
+        payouts[transaction["reference"]]["amount"]=round(payouts[transaction["reference"]]["amount"],2)
+    else:
+        payouts[transaction["reference"]]={
+            "date": transaction["date"],
+            "amount": transaction["amount"]
+        }
+
+for key, payout in payouts.items():
+    data = {
+        "amount": 0-payout["amount"],
+        "bankAccount": config["SumUp"]["EasyVerein"]["AccountId"],
+        "date": "%sT00:00" % payout["date"],
+        "billingId": key,
+        "billingAccount": easy_verein.billing_account_get(config["EasyVerein"]["BillingAccounts"]["Transit"]),
+        "receiver": "SumUp",
+        "description": "%s\nUmbuchung" % (payout["date"])
+    }
+    easy_verein.booking_create(data)
+
+last_call.time_set(current_call.timestamp())

@@ -1,4 +1,5 @@
 /conf.json
 /SumUp_LastCall.txt
+/LastCall_*.txt
 /PyVenv
 /__pycache__
