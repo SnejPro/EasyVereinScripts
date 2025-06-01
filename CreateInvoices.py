@@ -17,11 +17,15 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument(
     '--date__gte',
-    type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d')
+    type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d'),
+    required=True,
+    help='Bookings before this date will not be processed'
 )
 parser.add_argument(
     '--date__lte',
-    type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d')
+    type=lambda s: datetime.datetime.strptime(s, '%Y-%m-%d'),
+    required=True,
+    help='Bookings after this date will not be processed'
 )
 args=parser.parse_args()
 
