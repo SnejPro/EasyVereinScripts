@@ -1,5 +1,7 @@
+/conf_[a-zA-Z]*.json
 /conf.json
 /SumUp_LastCall.txt
 /LastCall_*.txt
 /PyVenv
 /__pycache__
+/bkp/*
