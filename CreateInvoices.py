@@ -4,10 +4,6 @@ import functions
 from functions import *
 import datetime
 import json
-import os
-from pprint import pprint
-import requests
-import time
 import argparse
 
 parser = argparse.ArgumentParser(
@@ -54,17 +50,15 @@ with open("bkp/bookings_%s_.json" % current_time, "w") as booking_bkp:
 
 i=0
 for booking in bookings:
-    if (i>=1):
-        break
-
+    invoice_number="auto_%s_%s" % (current_time, i)
     invoice=easy_verein.invoice_create(
         amount=booking["amount"],
         date=booking["date"],
         receiver=booking["receiver"],
-        invNumber="auto_%s_%s" % (current_time, i),
+        invNumber=invoice_number,
         relatedBooking=booking["id"],
         booking=booking,
     )
-    print(invoice)
+    print("Invoice %s for booking %s created" % (invoice_number, ))
 
     i=i+1

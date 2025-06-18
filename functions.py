@@ -3,7 +3,6 @@ import datetime
 import os
 import requests
 import re
-from pprint import pprint
 
 def selective_merge(base_obj, delta_obj):
     if not isinstance(base_obj, dict):

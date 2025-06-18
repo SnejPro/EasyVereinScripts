@@ -4,12 +4,7 @@ import argparse
 import functions
 from functions import *
 import datetime
-import json
-import os
-from pprint import pprint
-import requests
 import stripe
-import time
 
 parser = argparse.ArgumentParser(
     prog='EasyVereinScripts - Stripe',
@@ -48,6 +43,7 @@ balance_transactions = stripe.BalanceTransaction.list(
 
 for transaction in balance_transactions.auto_paging_iter():
     if transaction["type"]=="payment":
+        #Processing payment
         time=datetime.datetime.fromtimestamp(transaction["available_on"])
         data = {
             "amount": transaction["amount"]/100,
@@ -59,6 +55,7 @@ for transaction in balance_transactions.auto_paging_iter():
         }
         easy_verein.booking_create(data)
 
+        #Processing fee
         data = {
             "amount": 0-transaction["fee"]/100,
             "bankAccount": config.config["Stripe"]["EasyVerein"]["AccountId"],
@@ -68,6 +65,7 @@ for transaction in balance_transactions.auto_paging_iter():
             "description": "%s\nStripe-Zahlung (Gebühren)\n%s" % (time.strftime("%Y-%m-%d %H:%M:%S"), transaction["description"])
         }
         easy_verein.booking_create(data)
+    #Processing payout
     elif transaction["type"]=="payout":
         data = {
             "amount": transaction["amount"]/100,
@@ -81,5 +79,7 @@ for transaction in balance_transactions.auto_paging_iter():
         easy_verein.booking_create(data)
     else:
         print("skipping unsupported transaction type\n%s" % transaction)
+    #Prevent easyVerein rate limit
+    time.sleep(1)
 
 last_call.time_set(current_call.timestamp())
