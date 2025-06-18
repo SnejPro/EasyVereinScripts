@@ -44,6 +44,6 @@ If you have issues with one of the scripts, please open an issue.
 # If something goes wrong
 I developed the scripts for my own purposes. I can not guarantee that it won't mess up your easyVerein instance or can cause problems with SumUp or Stripe.
 
-Use at your own risk!
+**Use at your own risk!**
 
 This project is not affiliated with easyVerein.
