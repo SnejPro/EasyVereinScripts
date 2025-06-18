@@ -4,4 +4,5 @@
 /LastCall_*.txt
 /PyVenv
 /__pycache__
-/bkp/*
+/bkp
+/datadir

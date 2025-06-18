@@ -27,11 +27,18 @@ parser.add_argument(
     required=True,
     help='Bookings after this date will not be processed'
 )
+parser.add_argument(
+    '--custom_config_file',
+    required=False,
+    default="conf.json",
+    help='Custom conf file, which overrides defaults in conf.defaults.json'
+)
 args=parser.parse_args()
 
-config=functions.config_get()
+config=functions.configClass(args.custom_config_file)
 easy_verein=easy_verein(
-    api_key=config["EasyVerein"]["ApiKey"],
+    api_key=config.config["EasyVerein"]["ApiKey"],
+    config=config
 )
 
 bookings=easy_verein.bookings_get(

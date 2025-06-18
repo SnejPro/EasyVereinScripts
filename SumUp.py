@@ -1,4 +1,8 @@
+#!PyVenv/bin/python3
+
+import argparse
 import datetime
+import functions
 from functions import *
 import fractions
 import json
@@ -8,13 +12,27 @@ import requests
 import time
 from zoneinfo import ZoneInfo
 
+parser = argparse.ArgumentParser(
+    prog='EasyVereinScripts - SumUp',
+    description='Get SumUp bookings and import them to easyverein',
+    add_help=True
+)
+parser.add_argument(
+    '--custom_config_file',
+    required=False,
+    default="conf.json",
+    help='Custom conf file, which overrides defaults in conf.defaults.json'
+)
+args=parser.parse_args()
+config=functions.configClass(args.custom_config_file)
+
 def fetch_next(resp, headers):
     transactions=[]
     if "links" in resp:
         for link in resp["links"]:
             if link["rel"] == "next":
                 response = requests.get(
-                    "https://api.sumup.com/v2.1/merchants/%s/transactions/history?%s" % (config["SumUp"]["MerchantId"], link["href"]),
+                    "https://api.sumup.com/v2.1/merchants/%s/transactions/history?%s" % (config.config["SumUp"]["MerchantId"], link["href"]),
                     headers=headers
                 )
                 if "items" in response.json():
@@ -27,17 +45,20 @@ def transaction_detail_get(transaction, headers):
         "id": transaction["transaction_id"]
     }
     response = requests.get(
-        "https://api.sumup.com/v2.1/merchants/%s/transactions" % (config["SumUp"]["MerchantId"]),
+        "https://api.sumup.com/v2.1/merchants/%s/transactions" % (config.config["SumUp"]["MerchantId"]),
         params=params,
         headers=headers
     )
     return response.json()
 
-config = config_get()
-last_call=last_call("SumUp")
-local_time_zone=ZoneInfo(config["Preferences"]["TimeZone"])
 
-headers = {"Authorization": "Bearer %s" % config["SumUp"]["ApiKey"]}
+last_call=last_call(
+    "SumUp",
+    config=config
+)
+local_time_zone=ZoneInfo(config.config["Preferences"]["TimeZone"])
+
+headers = {"Authorization": "Bearer %s" % config.config["SumUp"]["ApiKey"]}
 parameter={
     "limit": 10
 }
@@ -48,12 +69,13 @@ transactions=[]
 current_call=datetime.datetime.now(datetime.timezone.utc)
 
 easy_verein=easy_verein(
-    api_key=config["EasyVerein"]["ApiKey"],
-    bank_account=config["SumUp"]["EasyVerein"]["AccountId"]
+    api_key=config.config["EasyVerein"]["ApiKey"],
+    bank_account=config.config["SumUp"]["EasyVerein"]["AccountId"],
+    config=config
 )
 
 response = requests.get(
-    'https://api.sumup.com/v2.1/merchants/%s/transactions/history' % (config["SumUp"]["MerchantId"]),
+    'https://api.sumup.com/v2.1/merchants/%s/transactions/history' % (config.config["SumUp"]["MerchantId"]),
     params=parameter,
     headers=headers
 )
@@ -72,7 +94,7 @@ for transaction in transactions:
     transaction_time=datetime.datetime.fromisoformat(transaction["detail"]["local_time"]).replace(tzinfo=local_time_zone)
     data = {
         "amount": transaction["amount"],
-        "bankAccount": config["SumUp"]["EasyVerein"]["AccountId"],
+        "bankAccount": config.config["SumUp"]["EasyVerein"]["AccountId"],
         "date": transaction_time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "billingId": "%s_payment" % transaction["transaction_code"],
         "receiver": transaction["payment_type"],
@@ -82,7 +104,7 @@ for transaction in transactions:
 
     data = {
         "amount": 0-float(transaction["detail"]["events"][0]["fee_amount"]),
-        "bankAccount": config["SumUp"]["EasyVerein"]["AccountId"],
+        "bankAccount": config.config["SumUp"]["EasyVerein"]["AccountId"],
         "date": transaction_time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "billingId": "%s_fee" % transaction["transaction_code"],
         "receiver": "SumUp",
@@ -102,7 +124,7 @@ else:
 parameter["end_date"]=current_call.strftime('%Y-%m-%d')
 
 response = requests.get(
-    'https://api.sumup.com/v1.0/merchants/%s/payouts' % (config["SumUp"]["MerchantId"]),
+    'https://api.sumup.com/v1.0/merchants/%s/payouts' % (config.config["SumUp"]["MerchantId"]),
     params=parameter,
     headers=headers
 )
@@ -131,7 +153,7 @@ for key, payout in payouts.items():
         "bankAccount": config["SumUp"]["EasyVerein"]["AccountId"],
         "date": "%sT00:00" % payout["date"],
         "billingId": key,
-        "billingAccount": easy_verein.billing_account_get(config["EasyVerein"]["BillingAccounts"]["Transit"]),
+        "billingAccount": easy_verein.billing_account_get(config.config["EasyVerein"]["BillingAccounts"]["Transit"]),
         "receiver": "SumUp",
         "description": "%s\nUmbuchung" % (payout["date"])
     }

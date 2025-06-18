@@ -16,40 +16,47 @@ def selective_merge(base_obj, delta_obj):
         base_obj[k] = delta_obj[k]
     return base_obj
 
-def config_get():
-    try:
+class configClass():
+    def __init__(self, ccfp):
+        self.custom_config_file_path=ccfp
+
         with open("conf.defaults.json", "r") as config_defaults_file:
             config = json.loads(config_defaults_file.read())
 
-        if os.path.exists("conf.json"):
-            with open("conf.json", "r") as config_custom_file:
+        if os.path.exists(self.custom_config_file_path):
+            with open(self.custom_config_file_path, "r") as config_custom_file:
                 config_custom = json.loads(config_custom_file.read())
                 config = selective_merge(config, config_custom)
         else:
             print("Warning: No conf.json present, using defaults")
-        return config
-    except Exception as e:
-        print("Error loading config: %s" % e)
+        self.config=config
 
-def config_update_easyverein_api_key(newkey):
-    if os.path.exists("conf.json"):
-        with open("conf.json", "r+") as config_custom_file:
-            config_custom = json.loads(config_custom_file.read())
-            if "EasyVerein" in config_custom and "ApiKey" in config_custom["EasyVerein"]:
-                config_custom["EasyVerein"]["ApiKey"]=newkey
-                config_custom_file.seek(0)
-                json.dump(config_custom, config_custom_file, indent=4)
-                config_custom_file.truncate()
-                print("New easyverein api key saved to conf.json")
-                return True
-            else:
-                raise Exception("No EasyVerein/ApiKey in conf.json")
-    else:
-        raise Exception("Warning: No conf.json present, can not save new easyverein api key")
+        self.create_data_dir()
+
+    def create_data_dir(self):
+        self.datadir="datadir/%s" % re.search("[^\/\\\n]+(?=\.json$)", self.custom_config_file_path).group()
+        if not os.path.exists(self.datadir):
+            os.makedirs(self.datadir)
+
+    def config_update_easyverein_api_key(self, newkey):
+        if os.path.exists(self.custom_config_file_path):
+            with open(self.custom_config_file_path, "r+") as config_custom_file:
+                config_custom = json.loads(config_custom_file.read())
+                if "EasyVerein" in config_custom and "ApiKey" in config_custom["EasyVerein"]:
+                    config_custom["EasyVerein"]["ApiKey"]=newkey
+                    config_custom_file.seek(0)
+                    json.dump(config_custom, config_custom_file, indent=4)
+                    config_custom_file.truncate()
+                    print("New easyverein api key saved to conf.json")
+                    return True
+                else:
+                    raise Exception("No EasyVerein/ApiKey in conf.json")
+        else:
+            raise Exception("Warning: No conf.json present, can not save new easyverein api key")
 
 class last_call():
-    def __init__(self, name):
-        self.file="LastCall_%s.txt" % name
+    def __init__(self, name, config):
+        self.file="%s/LastCall_%s.txt" % ( config.datadir, name )
 
         if os.path.exists(self.file):
             try:
@@ -68,16 +75,18 @@ class last_call():
 class easy_verein():
     billing_accounts= {}
 
-    def __init__(self, api_key, bank_account=None):
+    def __init__(self, api_key, config, bank_account=None):
         self.headers = {"Authorization": "Bearer %s" % api_key}
         newkey=self.token_update_if_neccesary()
         if newkey:
             self.headers = {"Authorization": "Bearer %s" % newkey}
         if bank_account!=None:
             self.bank_account=bank_account
+        
 
     # returns newkey when key was updated, returns False when not
     def token_update_if_neccesary(self):
+        global config
         response = requests.get(
             'https://easyverein.com/api/v2.0/calendar',
             headers=self.headers
@@ -92,7 +101,7 @@ class easy_verein():
                 headers=self.headers
             )
             newkey=response.json()["Bearer"]
-            config_update_easyverein_api_key(newkey)
+            config.config_update_easyverein_api_key(newkey)
             return newkey
         else:
             print("Token valid and no refresh needed.")
