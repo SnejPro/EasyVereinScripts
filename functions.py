@@ -3,6 +3,7 @@ import datetime
 import os
 import requests
 import re
+from pprint import pprint
 
 def selective_merge(base_obj, delta_obj):
     if not isinstance(base_obj, dict):
@@ -24,10 +25,27 @@ def config_get():
             with open("conf.json", "r") as config_custom_file:
                 config_custom = json.loads(config_custom_file.read())
                 config = selective_merge(config, config_custom)
-        
+        else:
+            print("Warning: No conf.json present, using defaults")
         return config
     except Exception as e:
         print("Error loading config: %s" % e)
+
+def config_update_easyverein_api_key(newkey):
+    if os.path.exists("conf.json"):
+        with open("conf.json", "r+") as config_custom_file:
+            config_custom = json.loads(config_custom_file.read())
+            if "EasyVerein" in config_custom and "ApiKey" in config_custom["EasyVerein"]:
+                config_custom["EasyVerein"]["ApiKey"]=newkey
+                config_custom_file.seek(0)
+                json.dump(config_custom, config_custom_file, indent=4)
+                config_custom_file.truncate()
+                print("New easyverein api key saved to conf.json")
+                return True
+            else:
+                raise Exception("No EasyVerein/ApiKey in conf.json")
+    else:
+        raise Exception("Warning: No conf.json present, can not save new easyverein api key")
 
 class last_call():
     def __init__(self, name):
@@ -52,8 +70,34 @@ class easy_verein():
 
     def __init__(self, api_key, bank_account=None):
         self.headers = {"Authorization": "Bearer %s" % api_key}
+        newkey=self.token_update_if_neccesary()
+        if newkey:
+            self.headers = {"Authorization": "Bearer %s" % newkey}
         if bank_account!=None:
             self.bank_account=bank_account
+
+    # returns newkey when key was updated, returns False when not
+    def token_update_if_neccesary(self):
+        response = requests.get(
+            'https://easyverein.com/api/v2.0/calendar',
+            headers=self.headers
+        )
+        if response.headers["tokenRefreshNeeded"] not in [ "True", "False" ]:
+            print("Invalid token RefreshNeededAnswer")
+            return False
+        if response.headers["tokenRefreshNeeded"]=="True":
+            print("Token valid, but a refresh is needed.")
+            response = requests.get(
+                'https://easyverein.com/api/v2.0/refresh-token',
+                headers=self.headers
+            )
+            newkey=response.json()["Bearer"]
+            config_update_easyverein_api_key(newkey)
+            return newkey
+        else:
+            print("Token valid and no refresh needed.")
+            return False
+        
 
     def billing_account_get(self, number):
         if number in self.billing_accounts:
