@@ -1,5 +1,18 @@
 # Unoffical scripts for easyVerein
 
+# Functions:
+I developed the following scripts for tweaking my easyverein experience
+1. Stripe.py
+    - import payments (incl. fees) and payouts from Stripe
+2. SumUp.py
+    - import payments (incl. fees) and payouts from SumUp
+3. CreateInvoices.py (Experimental)
+    - create invoices for all bookings that do not already have an invoice attached within a given timeperiod.
+    - (You need an invoice attached to all bookings to export your bookwork for DATEV)
+4. EasyVereinRefreshToken.py
+    - refresh easyverein token
+    - run this script every week, if you do not run one of the other scripts every week
+
 # HowTo
 
 1. Create virtualenv:
@@ -24,18 +37,6 @@ PyVenv/bin/python3 EasyVereinRefereshToken.py -h
 # CAVE: First you need to assign every invoice you have
 PyVenv/bin/python3 CreateInvoices.py -h
 ```
-
-# Functions:
-1. Stripe.py
-    - import payments (incl. fees) and payouts
-2. SumUp.py
-    - import payments (incl. fees) and payouts
-3. CreateInvoices.py (Experimental)
-    - create invoices for all bookings that do not already have an invoice attached within a given timeperiod.
-    - (You need an invoice attached to all bookings to export your bookwork for DATEV)
-4. EasyVereinRefreshToken.py
-    - refresh easyverein token
-    - run this script every week, if you do not run one of the other scripts every week
 
 # Get Help:
 If you have issues with one of the scripts, please open an issue.
