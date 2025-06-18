@@ -239,27 +239,4 @@ class easy_verein():
         if invoice_patch_response.status_code!=200:
             raise Exception("Error combining invoice with booking invoice: %s, booking: %s\nresponse: %s" % (invoice["id"], relatedBooking, invoice_patch_response.json()))
 
-        # data={
-        #     "assign_all_open": False,
-        #     "billingAccount": re.search("\d+$", booking["billingAccount"]).group(),
-        #     "bookingId": relatedBooking,
-        #     "debit_call_data": "",
-        #     "dry": False,
-        #     "invoices": {
-        #         invoice["id"]: True
-        #     },
-        #     "remove_all": False,
-        #     "sphere": booking["sphere"],
-        #     "useTabledataFormat": True
-        # }
-        # if booking["bookingProject"]!=None:
-        #     data["groupId"]=re.search("\d+$", booking["bookingProject"]).group()
-
-        # booking_response = requests.post(
-        #     'https://easyverein.com/app/api/combineBookingAndInvoice/',
-        #     data=data,
-        #     headers=self.headers
-        # )
-        # print(booking_response.content)
-
         return invoice_patch
