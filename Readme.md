@@ -21,7 +21,7 @@ I developed the following scripts for tweaking my easyverein experience
 `PyVenv/bin/python3 -m pip install -r requirements.txt`
 3. Copy `conf.defaults.json` to `conf.json` (or any other filename)
 `cp conf.defaults.json conf.json`
-4. Edit conf.json (with nano, vi, etc.) and enter your api keys, MerchantId (SumUp), AccountId (easyVerein)
+4. Edit conf.json (with nano, vi, etc.) and enter your api keys, MerchantId (SumUp), AccountId (easyVerein), TimeZone
 5. Run scripts with -h to see commandline options
 ```
 # Get all Stripe bookings (since last import):
