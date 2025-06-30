@@ -3,6 +3,7 @@ import datetime
 import os
 import requests
 import re
+from pathlib import Path
 
 def selective_merge(base_obj, delta_obj):
     if not isinstance(base_obj, dict):
@@ -17,9 +18,12 @@ def selective_merge(base_obj, delta_obj):
 
 class configClass():
     def __init__(self, ccfp):
-        self.custom_config_file_path=ccfp
+        self.base_path = Path(__file__).parent
+        self.custom_config_file_path=(self.base_path / ccfp).resolve()
+ 
+        default_config_file_path=(self.base_path / "conf.defaults.json").resolve()
 
-        with open("conf.defaults.json", "r") as config_defaults_file:
+        with open(default_config_file_path, "r") as config_defaults_file:
             config = json.loads(config_defaults_file.read())
 
         if os.path.exists(self.custom_config_file_path):
@@ -33,7 +37,7 @@ class configClass():
         self.create_data_dir()
 
     def create_data_dir(self):
-        self.datadir="datadir/%s" % re.search("[^\/\\\n]+(?=\.json$)", self.custom_config_file_path).group()
+        self.datadir=(self.base_path / ("datadir/%s" % re.search("[^\/\\\n]+(?=\.json$)", self.custom_config_file_path.name).group())).resolve()
         if not os.path.exists(self.datadir):
             os.makedirs(self.datadir)
 
@@ -55,7 +59,7 @@ class configClass():
 
 class last_call():
     def __init__(self, name, config):
-        self.file="%s/LastCall_%s.txt" % ( config.datadir, name )
+        self.file=(config.datadir / ("LastCall_%s.txt" % ( name ))).resolve()
 
         if os.path.exists(self.file):
             try:
