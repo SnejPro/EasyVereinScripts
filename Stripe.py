@@ -67,6 +67,7 @@ for transaction in balance_transactions.auto_paging_iter():
         easy_verein.booking_create(data)
     #Processing payout
     elif transaction["type"]=="payout":
+        time=datetime.datetime.fromtimestamp(transaction["available_on"])
         data = {
             "amount": transaction["amount"]/100,
             "bankAccount": config.config["Stripe"]["EasyVerein"]["AccountId"],
