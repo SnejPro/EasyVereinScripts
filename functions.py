@@ -4,6 +4,7 @@ import os
 import requests
 import re
 from pathlib import Path
+import time
 
 def selective_merge(base_obj, delta_obj):
     if not isinstance(base_obj, dict):
@@ -80,6 +81,7 @@ class easy_verein():
 
     def __init__(self, api_key, config, bank_account=None):
         self.headers = {"Authorization": "Bearer %s" % api_key}
+        self.config = config
         newkey=self.token_update_if_neccesary()
         if newkey:
             self.headers = {"Authorization": "Bearer %s" % newkey}
@@ -89,7 +91,6 @@ class easy_verein():
 
     # returns newkey when key was updated, returns False when not
     def token_update_if_neccesary(self):
-        global config
         response = requests.get(
             'https://easyverein.com/api/v2.0/calendar',
             headers=self.headers
@@ -104,7 +105,7 @@ class easy_verein():
                 headers=self.headers
             )
             newkey=response.json()["Bearer"]
-            config.config_update_easyverein_api_key(newkey)
+            self.config.config_update_easyverein_api_key(newkey)
             return newkey
         else:
             print("Token valid and no refresh needed.")
@@ -190,6 +191,8 @@ class easy_verein():
                 raise Exception("Error creating Transaction %s:\n%s" % (transaction["billingId"], response.json()))
         else:
             print("Transaction '%s' already exists. Skipping" % transaction["billingId"])
+            #Prevent easyVerein rate limit
+            time.sleep(1)
 
     def invoice_create(
         self,
