@@ -79,7 +79,6 @@ for transaction in balance_transactions.auto_paging_iter():
         easy_verein.booking_create(data)
     else:
         print("skipping unsupported transaction type\n%s" % transaction)
-    #Prevent easyVerein rate limit
-    time.sleep(1)
+
 
 last_call.time_set(current_call.timestamp())
