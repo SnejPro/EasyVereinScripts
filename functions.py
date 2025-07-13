@@ -95,6 +95,7 @@ class easy_verein():
             'https://easyverein.com/api/v2.0/calendar',
             headers=self.headers
         )
+        time.sleep(1)
         if response.headers["tokenRefreshNeeded"] not in [ "True", "False" ]:
             print("Invalid token RefreshNeededAnswer")
             return False
@@ -104,6 +105,7 @@ class easy_verein():
                 'https://easyverein.com/api/v2.0/refresh-token',
                 headers=self.headers
             )
+            time.sleep(1)
             newkey=response.json()["Bearer"]
             self.config.config_update_easyverein_api_key(newkey)
             return newkey
@@ -124,6 +126,7 @@ class easy_verein():
             },
             headers=self.headers
         )
+        time.sleep(1)
         if response.json()["count"]==1:
             self.billing_accounts[number]=response.json()["results"][0]["id"]
             return response.json()["results"][0]["id"]
@@ -136,10 +139,10 @@ class easy_verein():
                 previous_response["next"],
                 headers=self.headers
             )
+            time.sleep(1)
             response_content=response.json()
             results=response_content["results"]
             results.extend(self.bookings_get_fetch_next(previous_response=response_content))
-
         return results
 
     def bookings_get(self, date__gte, date__lte, relatedInvoice__isnull=None):
@@ -157,6 +160,7 @@ class easy_verein():
             params=params,
             headers=self.headers
         )
+        time.sleep(1)
         response_content=response.json()
         results=response_content["results"]
         results.extend(self.bookings_get_fetch_next(previous_response=response_content))
@@ -170,6 +174,7 @@ class easy_verein():
             },
             headers=self.headers
         )
+        time.sleep(1)
         if response.json()["count"]>0:
             return True
 
@@ -185,6 +190,7 @@ class easy_verein():
                 data=data,
                 headers=self.headers
             )
+            time.sleep(1)
             if response.status_code == 201:
                 print("Transaction '%s' created successfully" % transaction["billingId"])
             else:
@@ -192,7 +198,7 @@ class easy_verein():
         else:
             print("Transaction '%s' already exists. Skipping" % transaction["billingId"])
             #Prevent easyVerein rate limit
-            time.sleep(1)
+            
 
     def invoice_create(
         self,
@@ -229,6 +235,7 @@ class easy_verein():
             json=data,
             headers=self.headers
         )
+        time.sleep(1)
         invoice=invoice_response.json()
         if invoice_response.status_code!=201:
             raise Exception("Error creating invoice object: %s\nresponse: %s" % data, relatedBooking, invoice_response.json())
@@ -242,6 +249,7 @@ class easy_verein():
             json=data,
             headers=self.headers
         )
+        time.sleep(1)
         invoice_patch=invoice_patch_response.json()
         if invoice_patch_response.status_code!=200:
             raise Exception("Error combining invoice with booking invoice: %s, booking: %s\nresponse: %s" % (invoice["id"], relatedBooking, invoice_patch_response.json()))
