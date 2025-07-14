@@ -122,7 +122,8 @@ class easy_verein():
             'https://easyverein.com/api/v2.0/billing-account',
             params={
                 "number__gte": number,
-                "number__lte": number
+                "number__lte": number,
+                "accountingPlan__isnull": 0
             },
             headers=self.headers
         )
@@ -130,8 +131,10 @@ class easy_verein():
         if response.json()["count"]==1:
             self.billing_accounts[number]=response.json()["results"][0]["id"]
             return response.json()["results"][0]["id"]
-        else:
+        elif response.json()["count"]==0:
             raise Exception("Billing account number %s could not be found" % (number))
+        else:
+            raise Exception("Multiple billing account number %s found" % (number))
         
     def bookings_get_fetch_next(self, previous_response, results=[]):
         if "next" in previous_response and previous_response["next"]!=None:
@@ -176,7 +179,9 @@ class easy_verein():
         )
         time.sleep(1)
         if response.json()["count"]>0:
-            return True
+            return response.json()
+        else:
+            return False
 
     def booking_create(self, transaction):
         if self.bank_account==None:
@@ -198,6 +203,25 @@ class easy_verein():
         else:
             print("Transaction '%s' already exists. Skipping" % transaction["billingId"])
             #Prevent easyVerein rate limit
+
+    def booking_revert(self, billingId, time):
+        booking=self.booking_id_exists(billingId)
+        if booking["count"]==1:
+            data = {
+                "amount": 0-float(booking["results"][0]["amount"]),
+                "bankAccount": booking["results"][0]["bankAccount"],
+                "date": time,
+                "billingId": "%s_refund" % booking["results"][0]["billingId"],
+                "receiver": booking["results"][0]["receiver"],
+                "description": "ERSTATTUNG - %s" % booking["results"][0]["description"]
+            }
+            self.booking_create(data)
+        elif booking["count"]==0:
+            raise("Can not revert, because billingId %s does not exists" % billingId)
+        else:
+            raise("Can not revert, because multiple billingId %s exists" % billingId)
+
+
             
 
     def invoice_create(
