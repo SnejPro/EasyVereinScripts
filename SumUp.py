@@ -80,8 +80,6 @@ transactions.extend(fetch_next(resp=response.json(), headers=headers))
 
 for transaction in transactions:
     transaction["detail"]=transaction_detail_get(transaction, headers=headers)
-with open("bkp/sumup_transactions_derp_.json", "w") as booking_bkp:
-    json.dump(transactions, booking_bkp, indent=4)
 
 for transaction in transactions:
     if transaction["status"] not in ("SUCCESSFUL", "REFUNDED"):
