@@ -128,10 +128,11 @@ class easy_verein():
             headers=self.headers
         )
         time.sleep(1)
-        if response.json()["count"]==1:
+
+        if len(response.json()["results"])==1:
             self.billing_accounts[number]=response.json()["results"][0]["id"]
             return response.json()["results"][0]["id"]
-        elif response.json()["count"]==0:
+        elif len(response.json()["results"])==0:
             raise Exception("Billing account number %s could not be found" % (number))
         else:
             raise Exception("Multiple billing account number %s found" % (number))
@@ -178,8 +179,10 @@ class easy_verein():
             headers=self.headers
         )
         time.sleep(1)
-        if response.json()["count"]>0:
-            return response.json()
+        response_json=response.json()
+        if len(response_json["results"])>0:
+            response_json["count"]=len(response_json["results"])
+            return response_json
         else:
             return False
 

@@ -119,7 +119,6 @@ if last_call.time!=None:
     parameter["start_date"]=last_call.time.strftime('%Y-%m-%d')
 else:
     parameter["start_date"]="%s-01-01" % datetime.datetime.now().year
-parameter["start_date"]="2024-01-01"
 
 parameter["end_date"]=current_call.strftime('%Y-%m-%d')
 
