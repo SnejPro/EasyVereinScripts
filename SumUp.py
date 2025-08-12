@@ -129,7 +129,6 @@ response = requests.get(
 )
 transactions=response.json()
 payouts={}
-print(transactions)
 for transaction in transactions:
     if transaction["status"] != "SUCCESSFUL":
         print("skipping unsuccessfull transaction\n%s" % transaction)
