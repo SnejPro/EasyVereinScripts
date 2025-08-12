@@ -72,7 +72,7 @@ class last_call():
             self.time=None
 
     def time_set(self, time):
-        print("Set last_call.time")
+        #print("Set last_call.time")
         with open(self.file, "w") as LastCallFile:
             LastCallFile.write(str(time))
 
@@ -110,7 +110,7 @@ class easy_verein():
             self.config.config_update_easyverein_api_key(newkey)
             return newkey
         else:
-            print("Token valid and no refresh needed.")
+            #print("Token valid and no refresh needed.")
             return False
         
 
