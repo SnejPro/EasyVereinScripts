@@ -96,6 +96,8 @@ class easy_verein():
             headers=self.headers
         )
         time.sleep(1)
+        if response.status_code==401:
+            raise Exception("Error when checking easyVerein token: %s" % (response.headers["WWW-Authenticate"]))
         if response.headers["tokenRefreshNeeded"] not in [ "True", "False" ]:
             print("Invalid token RefreshNeededAnswer")
             return False
