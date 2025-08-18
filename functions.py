@@ -38,7 +38,7 @@ class configClass():
         self.create_data_dir()
 
     def create_data_dir(self):
-        self.datadir=(self.base_path / ("datadir/%s" % re.search("[^\/\\\n]+(?=\.json$)", self.custom_config_file_path.name).group())).resolve()
+        self.datadir=(self.base_path / ("datadir/%s" % re.search(r"[^\/\\\n]+(?=\.json$)", self.custom_config_file_path.name).group())).resolve()
         if not os.path.exists(self.datadir):
             os.makedirs(self.datadir)
 
@@ -96,6 +96,8 @@ class easy_verein():
             headers=self.headers
         )
         time.sleep(1)
+        if response.status_code==401:
+            raise Exception("Error when checking easyVerein token: %s" % (response.headers["WWW-Authenticate"]))
         if response.headers["tokenRefreshNeeded"] not in [ "True", "False" ]:
             print("Invalid token RefreshNeededAnswer")
             return False
@@ -246,7 +248,7 @@ class easy_verein():
             "charges": {
                 "total": amount_absolut
             },
-            "date": re.search("^\d{4}-\d{2}-\d{2}", date).group(),
+            "date": re.search(r"^\d{4}-\d{2}-\d{2}", date).group(),
             "receiver": receiver,
             "kind": kind,
             "totalPrice": amount_absolut,
