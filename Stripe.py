@@ -43,6 +43,15 @@ balance_transactions = stripe.BalanceTransaction.list(
 
 for transaction in balance_transactions.auto_paging_iter():
     if transaction["type"]=="payment":
+
+        receiver=None
+        if transaction["source"]["billing_details"]["name"]!=None and transaction["source"]["billing_details"]["name"]!="":
+            receiver=transaction["source"]["billing_details"]["name"]
+        elif transaction["source"]["billing_details"]["email"]!=None and transaction["source"]["billing_details"]["email"]!="":
+            receiver=transaction["source"]["billing_details"]["email"]
+        else:
+            receiver="No Name"
+
         #Processing payment
         time=datetime.datetime.fromtimestamp(transaction["available_on"])
         data = {
@@ -50,7 +59,7 @@ for transaction in balance_transactions.auto_paging_iter():
             "bankAccount": config.config["Stripe"]["EasyVerein"]["AccountId"],
             "date": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "billingId": "%s_payment" % transaction["id"],
-            "receiver": transaction["source"]["billing_details"]["name"],
+            "receiver": receiver,
             "description": "%s\nStripe-Zahlung (Einnahme)\n%s" % (time.strftime("%Y-%m-%d %H:%M:%S"), transaction["description"])
         }
         easy_verein.booking_create(data)
