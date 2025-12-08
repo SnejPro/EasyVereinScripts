@@ -19,6 +19,12 @@ parser.add_argument(
     default="conf.json",
     help='Custom conf file, which overrides defaults in conf.defaults.json'
 )
+parser.add_argument(
+    '--easyverein_key_no_renew',
+    required=False,
+    action='store_true',
+    help="Don't renew the easyverein api key"
+)
 args=parser.parse_args()
 config=functions.configClass(args.custom_config_file)
 
@@ -67,7 +73,8 @@ current_call=datetime.datetime.now(datetime.timezone.utc)
 easy_verein=easy_verein(
     api_key=config.config["EasyVerein"]["ApiKey"],
     bank_account=config.config["SumUp"]["EasyVerein"]["AccountId"],
-    config=config
+    config=config,
+    easyverein_key_no_renew=args.easyverein_key_no_renew
 )
 
 response = requests.get(
@@ -81,9 +88,16 @@ transactions.extend(fetch_next(resp=response.json(), headers=headers))
 for transaction in transactions:
     transaction["detail"]=transaction_detail_get(transaction, headers=headers)
 
+if len(transactions)>0:
+    with open((config.datadir / ("bkp_SumUp_transactions_%s.txt" % ( current_call.strftime("%Y-%m-%d_%H-%M-%S") ))).resolve(), "w") as file_sumup_transactions:
+        file_sumup_transactions.write(json.dumps(transactions, indent=4))
+    
 for transaction in transactions:
     if transaction["status"] not in ("SUCCESSFUL", "REFUNDED"):
         print("skipping unsuccessfull transaction\n%s" % transaction)
+        continue
+    if transaction["payment_type"] in ("CASH"):
+        print("skipping cash transaction: %s" % transaction["transaction_code"])
         continue
     if transaction["status"]=="SUCCESSFUL":
         transaction_time=datetime.datetime.fromisoformat(transaction["detail"]["local_time"]).replace(tzinfo=local_time_zone)
@@ -158,4 +172,7 @@ for key, payout in payouts.items():
     }
     easy_verein.booking_create(data)
 
-last_call.time_set(current_call.timestamp())
+if config.config["DevMode"]:
+    print("last_call set time to %s" % current_call.timestamp())
+else:
+    last_call.time_set(current_call.timestamp())

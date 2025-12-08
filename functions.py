@@ -79,12 +79,13 @@ class last_call():
 class easy_verein():
     billing_accounts= {}
 
-    def __init__(self, api_key, config, bank_account=None):
+    def __init__(self, api_key, config, bank_account=None, easyverein_key_no_renew=False):
         self.headers = {"Authorization": "Bearer %s" % api_key}
         self.config = config
-        newkey=self.token_update_if_neccesary()
-        if newkey:
-            self.headers = {"Authorization": "Bearer %s" % newkey}
+        if not easyverein_key_no_renew:
+            newkey=self.token_update_if_neccesary()
+            if newkey:
+                self.headers = {"Authorization": "Bearer %s" % newkey}
         if bank_account!=None:
             self.bank_account=bank_account
         
@@ -195,6 +196,9 @@ class easy_verein():
             print("Transaction '%s' does not exist. Creating ..." % transaction["billingId"])
             data = transaction
             data["bankAccount"]=self.bank_account
+            if self.config.config["DevMode"]:
+                print("Transaction create: %s" % data)
+                return
             response = requests.post(
                 'https://easyverein.com/api/v2.0/booking',
                 data=data,
@@ -205,6 +209,7 @@ class easy_verein():
                 print("Transaction '%s' created successfully" % transaction["billingId"])
             else:
                 raise Exception("Error creating Transaction %s:\n%s" % (transaction["billingId"], response.json()))
+                
         else:
             print("Transaction '%s' already exists. Skipping" % transaction["billingId"])
             #Prevent easyVerein rate limit
@@ -259,6 +264,9 @@ class easy_verein():
         if receiver==None or receiver=="":
             data["receiver"] = "**Missing**"
 
+        if self.config.config["DevMode"]:
+            print("Invoice create: %s" % data)
+            return
         invoice_response = requests.post(
             'https://easyverein.com/api/v2.0/invoice',
             json=data,
