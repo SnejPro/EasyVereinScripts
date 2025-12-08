@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 stripe = "*"
+pipenv = "*"
 requests = "*"
 
 [dev-packages]

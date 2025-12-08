@@ -20,5 +20,6 @@
     },
     "Preferences": {
         "TimeZone": "Europe/Berlin"
-    }
+    },
+    "DevMode": false
 }
