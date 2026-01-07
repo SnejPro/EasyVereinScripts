@@ -42,53 +42,56 @@ balance_transactions = stripe.BalanceTransaction.list(
 )
 
 for transaction in balance_transactions.auto_paging_iter():
-    if transaction["type"]=="payment":
+    match transaction["type"]:
+        case "payment":
+            receiver=None
+            if transaction["source"]["billing_details"]["name"]!=None and transaction["source"]["billing_details"]["name"]!="":
+                receiver=transaction["source"]["billing_details"]["name"]
+            elif transaction["source"]["billing_details"]["email"]!=None and transaction["source"]["billing_details"]["email"]!="":
+                receiver=transaction["source"]["billing_details"]["email"]
+            else:
+                receiver="No Name"
 
-        receiver=None
-        if transaction["source"]["billing_details"]["name"]!=None and transaction["source"]["billing_details"]["name"]!="":
-            receiver=transaction["source"]["billing_details"]["name"]
-        elif transaction["source"]["billing_details"]["email"]!=None and transaction["source"]["billing_details"]["email"]!="":
-            receiver=transaction["source"]["billing_details"]["email"]
-        else:
-            receiver="No Name"
+            #Processing payment
+            time=datetime.datetime.fromtimestamp(transaction["available_on"])
+            data = {
+                "amount": transaction["amount"]/100,
+                "bankAccount": config.config["Stripe"]["EasyVerein"]["AccountId"],
+                "date": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "billingId": "%s_payment" % transaction["id"],
+                "receiver": receiver,
+                "description": "%s\nStripe-Zahlung (Einnahme)\n%s" % (time.strftime("%Y-%m-%d %H:%M:%S"), transaction["description"])
+            }
+            easy_verein.booking_create(data)
 
-        #Processing payment
-        time=datetime.datetime.fromtimestamp(transaction["available_on"])
-        data = {
-            "amount": transaction["amount"]/100,
-            "bankAccount": config.config["Stripe"]["EasyVerein"]["AccountId"],
-            "date": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "billingId": "%s_payment" % transaction["id"],
-            "receiver": receiver,
-            "description": "%s\nStripe-Zahlung (Einnahme)\n%s" % (time.strftime("%Y-%m-%d %H:%M:%S"), transaction["description"])
-        }
-        easy_verein.booking_create(data)
-
-        #Processing fee
-        data = {
-            "amount": 0-transaction["fee"]/100,
-            "bankAccount": config.config["Stripe"]["EasyVerein"]["AccountId"],
-            "date": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "billingId": "%s_fee" % transaction["id"],
-            "receiver": "Stripe",
-            "description": "%s\nStripe-Zahlung (Gebühren)\n%s" % (time.strftime("%Y-%m-%d %H:%M:%S"), transaction["description"])
-        }
-        easy_verein.booking_create(data)
+            #Processing fee
+            data = {
+                "amount": 0-transaction["fee"]/100,
+                "bankAccount": config.config["Stripe"]["EasyVerein"]["AccountId"],
+                "date": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "billingId": "%s_fee" % transaction["id"],
+                "receiver": "Stripe",
+                "description": "%s\nStripe-Zahlung (Gebühren)\n%s" % (time.strftime("%Y-%m-%d %H:%M:%S"), transaction["description"])
+            }
+            easy_verein.booking_create(data)
     #Processing payout
-    elif transaction["type"]=="payout":
-        time=datetime.datetime.fromtimestamp(transaction["available_on"])
-        data = {
-            "amount": transaction["amount"]/100,
-            "bankAccount": config.config["Stripe"]["EasyVerein"]["AccountId"],
-            "date": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "billingId": "%s_payout" % transaction["id"],
-            "billingAccount": easy_verein.billing_account_get(config.config["EasyVerein"]["BillingAccounts"]["Transit"]),
-            "receiver": "Stripe",
-            "description": "%s\nUmbuchung" % (time.strftime("%Y-%m-%d"))
-        }
-        easy_verein.booking_create(data)
-    else:
-        print("skipping unsupported transaction type\n%s" % transaction)
+        case "payout":
+            time=datetime.datetime.fromtimestamp(transaction["available_on"])
+            data = {
+                "amount": transaction["amount"]/100,
+                "bankAccount": config.config["Stripe"]["EasyVerein"]["AccountId"],
+                "date": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "billingId": "%s_payout" % transaction["id"],
+                "billingAccount": easy_verein.billing_account_get(config.config["EasyVerein"]["BillingAccounts"]["Transit"]),
+                "receiver": "Stripe",
+                "description": "%s\nUmbuchung" % (time.strftime("%Y-%m-%d"))
+            }
+            easy_verein.booking_create(data)
+    #Ignore Minimum Balance transactions
+        case "payout_minimum_balance_release" | "payout_minimum_balance_hold":
+            pass
+        case _:
+            print("skipping unsupported transaction type\n%s" % transaction)
 
 
 last_call.time_set(current_call.timestamp())
